@@ -26,9 +26,6 @@ export default {
   },
 
   methods: {
-    /* 
-      初始化
-      */
     init() {
       const roleId = this.$route.params.id;
       this.getPermissions(roleId);

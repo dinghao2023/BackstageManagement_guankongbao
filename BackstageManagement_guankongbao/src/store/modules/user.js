@@ -1,110 +1,62 @@
-//引入登录|退出登录|获取用户信息的接口函数
 import { login, logout, getInfo } from '@/api/user'
-// 获取token|设置token|删除token的函数
-import { getToken, setToken, removeToken } from '@/utils/auth'
-//路由模块当中重置路由的方法
-import { anyRoutes, resetRouter,asyncRoutes,constantRoutes} from '@/router';
+import { getToken, setToken, removeToken } from '@/utils/auth'// 获取token|设置token|删除token的函数
+import { anyRoutes, resetRouter, asyncRoutes, constantRoutes } from '@/router';
 import router from '@/router';
 import cloneDeep from 'lodash/cloneDeep'
 
-//箭头函数
+
 const getDefaultState = () => {
   return {
-    //获取token
     token: getToken(),
-    //存储用户名
     name: '',
-    //存储用户头像
     avatar: '',
-    //服务器返回的菜单信息【根据不同的角色：返回的标记信息，数组里面的元素是字符串】
-    routes:[],
-    //角色信息
-    roles:[],
-    //按钮权限的信息
-    buttons:[],
-    //对比之后【项目中已有的异步路由，与服务器返回的标记信息进行对比最终需要展示的理由】
-    resultAsyncRoutes:[],
-    //用户最终需要展示全部路由
-    resultAllRputes:[]
+    routes: [],//当前用户可以展示的路由信息
+    roles: [],//当前用户所扮演的角色
+    buttons: [],//按钮权限的信息（一个数组，显示当前用户可以使用哪些按钮权限）
+    resultAsyncRoutes: [],//当前用户需要展示的全部异步路由
+    resultAllRoutes: []//当前用户最终需要展示全部路由
   }
 }
 
 const state = getDefaultState()
 
-//唯一修改state的地方
 const mutations = {
-  //重置state
-  RESET_STATE: (state) => {
+  RESET_STATE: (state) => {//重置state
     Object.assign(state, getDefaultState())
   },
-  //存储token
   SET_TOKEN: (state, token) => {
     state.token = token
   },
-  //存储用户信息
-  SET_USERINFO:(state,userInfo)=>{
-    //用户名
-     state.name = userInfo.name;
-     //用户头像
-     state.avatar = userInfo.avatar;
-     //菜单权限标记
-     state.routes = userInfo.routes;
-     //按钮权限标记
-     state.buttons = userInfo.buttons;
-     //角色
-     state.roles = userInfo.roles;
+  SET_USERINFO: (state, userInfo) => {//存储用户信息
+    state.name = userInfo.name;
+    state.avatar = userInfo.avatar;
+    state.routes = userInfo.routes;
+    state.buttons = userInfo.buttons;
+    state.roles = userInfo.roles;
   },
-  //最终计算出的异步路由
-  SET_RESULTASYNCROUTES:(state,asyncRoutes)=>{
-     //vuex保存当前用户的异步路由，注意，一个用户需要展示完成路由：常量、异步、任意路由
-     state.resultAsyncRoutes = asyncRoutes;
-     //计算出当前用户需要展示所有路由
-     state.resultAllRputes = constantRoutes.concat(state.resultAsyncRoutes,anyRoutes);
-     //给路由器添加新的路由
-      router.addRoutes(state.resultAllRputes)
+  SET_RESULTASYNCROUTES: (state, asyncRoutes) => {
+    state.resultAsyncRoutes = asyncRoutes;//当前用户需要展示的全部异步路由
+    state.resultAllRoutes = constantRoutes.concat(state.resultAsyncRoutes, anyRoutes); //当前用户最终需要展示全部路由，包含计算出的全部异步路由，以及constantRoutes和anyRoutes
+    router.addRoutes(state.resultAllRoutes)//给路由器添加路由
   }
 }
 
-
-//定义一个函数：两个数组进行对比，对比出当前用户到底显示哪些异步路由
- const computedAsyncRoutes = (asyncRoutes,routes)=>{
-     //过滤出当前用户【超级管理|普通员工】需要展示的异步路由
-    return asyncRoutes.filter(item=>{
-         //数组当中没有这个元素返回索引值-1，如果有这个元素返回的索引值一定不是-1 
-        if(routes.indexOf(item.name)!=-1){
-          //递归:别忘记还有2、3、4、5、6级路由
-          if(item.children&&item.children.length){
-              item.children = computedAsyncRoutes(item.children,routes);
-          }
-          return true;
-        }
-     })
- }
-
 const actions = {
-  //这里在处理登录业务
-  async login({ commit }, userInfo) {
+  async login({ commit }, userInfo) {//用户点击登录后派发此action
     const { username, password } = userInfo;
     let result = await login({ username: username.trim(), password: password });
-    //注意：当前登录请求现在使用mock数据，mock数据code是20000
     if(result.code==20000){
       commit('SET_TOKEN',result.data.token);
-      //本地持久化存储token
-      setToken(result.data.token);
+      setToken(result.data.token);//本地持久化存储token
       return 'ok';
     }else{
       return Promise.reject(new Error('faile'));
     }
   },
-
-  //获取用户信息
-  getInfo({ commit, state }) {
-
+  getInfo({ commit, state }) {//获取用户信息
     return new Promise((resolve, reject) => {
-      getInfo(state.token).then(response => {
-        //获取用户信息:返回数据包含：用户名name、用户头像avatar、routes[返回的标志:不同的用户应该展示哪些菜单的标记]、roles（用户角色信息）、buttons【按钮的信息：按钮权限用的标记】
+      getInfo(state.token).then(response => {//返回数据包含：用户名name、头像avatar、routes（一个数组，显示当前用户可以展示哪些菜单权限）、roles（当前用户所扮演的角色）、buttons（一个数组，显示当前用户可以使用哪些按钮权限）
         const { data } = response;
-        //vuex存储用户全部的信息
         commit('SET_USERINFO',data);
         commit('SET_RESULTASYNCROUTES',computedAsyncRoutes(cloneDeep(asyncRoutes),data.routes));
         resolve(data)
@@ -138,6 +90,17 @@ const actions = {
   }
 }
 
+//该函数用于计算出当前用户需要展示的全部异步路由。asyncRoutes为从router文件中获取的所有异步路由，routes为服务器返回的当前用户可以展示的路由信息
+const computedAsyncRoutes = (asyncRoutes, routes) => {
+  return asyncRoutes.filter(item => {
+    if (routes.indexOf(item.name) != -1) {
+      if (item.children && item.children.length) {//注意不要忽略了2、3、4、5、6级路由
+        item.children = computedAsyncRoutes(item.children, routes);//递归
+      }
+      return true;
+    }
+  })
+}
 
 
 export default {

@@ -88,7 +88,7 @@ export default {
     },
     handleLogin() {
       this.$refs.loginForm.validate(valid => {
-        if (valid) {
+        if(valid) {
           this.loading = true//按钮的loading效果
           this.$store.dispatch('user/login', this.loginForm).then(() => {
             this.$router.push({ path: this.redirect || '/' })
@@ -96,7 +96,7 @@ export default {
           }).catch(() => {
             this.loading = false
           })
-        } else {
+        }else {
           console.log('error submit!!')
           return false
         }
